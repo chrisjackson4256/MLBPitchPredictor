@@ -47,3 +47,27 @@ Feature Cleaning & Engineering:
  - Then, we perform some pitch type cleanup: we condense all of the different types of fastballs (e.g., four-seam, two-seam, sinker, cut fastball, split-finger fastball, etc.) into one type which we call "FB". We also drop any rows that have pitchouts or unknown types of pitches ('PO', 'FO', 'UN', 'XX', 'IN').
 
  - We map the pitch outcome ('B' for ball, 'S' for strike, 'X' for in-play) to integers for model-building purposes.
+
+### Training Pitcher-Specific Model
+
+Below, we build pitcher-specific models using the function "train_models". This function takes the cleaned dataframe from above as input along with a parameter called "pitch_count_cutoff". Because there are pitchers in this dataset that have a limited amount of pitches thrown during the season, we impose this (somewhat) arbitrarily-chosen cutoff to ensure we are only building meaningful models.
+
+The function loops through the list of pitchers that have a total pitch count above pitch_count_cutoff and:
+
+ - Subsets the dataframe to only include the current pitcher's data
+
+ - Builds a count dictionary of the pitcher's types of pitches
+
+ - Builds a map (and an inverse map) of the pitcher's pitches to integers (and those integers back to the original pitch abbreviations)
+
+ - Splits the data into a dataframe of features (X) and a dataframe of labels (y)
+
+ - Randomly splits X/y into train and test sets using an 80/20 percent training/testing split
+
+ - At this point, we make our choice of algorithm to use to train the model. For the timeframe of this project and the fact that a non-linear model should do a better job in this situation, an XGBoost classifier is an excellent choice. These types of models train fast, tend to have greater accuracy than other non-linear models (including bagging models such as Random Forests) and allow for multi-nomial classification. In particular, we train a multi-nomial version of an XGBoost classifier using "softprob" as the objective function (this will result in each of the possible outcomes being assigned probabilities). 
+ 
+ - We also perform a small grid search over several of the XGBoost hyperparameters using 5-fold cross-validation in order to optimize them. Again, due to time constraints, we cannot do a full hyperparameter optimization but we've chosen to optimize two of the most influential ones ("max_depth" which controls the maximum depth of the tree and, thus, the complexity of the model and "learning_rate" which controls the size of the weights of the features).
+
+ - Once the model has been trained, we perform predictions on the test X and compare to the corresponding test labels y. We also compute what the accuracy would have been had the model just naively chosen the pitcher's most used pitch. These are both stored in lists that we'll use later to assess the overall accuracy of our pitcher-specific models.
+
+ - Finally, we store the trained model along with some metadata (pitcher's ID, the pitch maps and the model accuracy on the test data) in a pickled file. These files will be loaded and used to make predictions in our API.
